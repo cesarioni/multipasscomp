@@ -17,7 +17,7 @@ def setupRender():
     scene = bpy.context.scene
     scene.use_nodes = True
     counter=0
-    offset = 800
+    offset = 2500
     FileBaseName = getFileBaseName()
     
     for viewLayer in bpy.context.scene.view_layers:
@@ -65,65 +65,18 @@ def createImageNode(xPos, yPos):
 def createReroutes(xPos, yPos, viewLayerName):
     ofsset=45
     
-    rerouteMist = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteMist.label="Mist"
-    rerouteMist.location=[xPos, yPos-ofsset*1]
-    
-    rerouteDiffDir = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteDiffDir.label="DiffDir"
-    rerouteDiffDir.location=[xPos, yPos-ofsset*2]
-    
-    rerouteDiffInd = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteDiffInd.label="DiffInd"
-    rerouteDiffInd.location=[xPos, yPos-ofsset*3]
-    
-    rerouteDiffCol = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteDiffCol.label="DiffCol"
-    rerouteDiffCol.location=[xPos, yPos-ofsset*4]
-    
-    rerouteGlossDir = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteGlossDir.label="GlossDir"
-    rerouteGlossDir.location=[xPos, yPos-ofsset*5]
-    
-    rerouteGlossInd = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteGlossInd.label="GlossInd"
-    rerouteGlossInd.location=[xPos, yPos-ofsset*6]
-    
-    rerouteGlossCol = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteGlossCol.label="GlossCol"
-    rerouteGlossCol.location=[xPos, yPos-ofsset*7]
-    
-    rerouteTransDir = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteTransDir.label="TransDir"
-    rerouteTransDir.location=[xPos, yPos-ofsset*8]
-    
-    rerouteTransInd = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteTransInd.label="TransInd"
-    rerouteTransInd.location=[xPos, yPos-ofsset*9]
-    
-    rerouteTransCol = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteTransCol.label="TransCol"
-    rerouteTransCol.location=[xPos, yPos-ofsset*10]
-    
-    rerouteAlpha = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteAlpha.label="Alpha"
-    rerouteAlpha.location=[xPos, yPos-ofsset*11]
-    
-    rerouteImage = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteImage.label="NoisyImage "
-    rerouteImage.location=[xPos, yPos-ofsset*12]
-    
-    rerouteLG1 = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteLG1.label="LG1"
-    rerouteLG1.location=[xPos, yPos-ofsset*13]
-    
-    rerouteLG2 = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteLG2.label="LG2"
-    rerouteLG2.location=[xPos, yPos-ofsset*14]
-    
-    rerouteLG3 = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-    rerouteLG3.label="LG3"
-    rerouteLG3.location=[xPos, yPos-ofsset*15]
+    rerouteMist = createDot("Mist",xPos, yPos-ofsset*1)
+    rerouteDiffDir = createDot("DiffDir",xPos, yPos-ofsset*2)
+    rerouteDiffInd = createDot("DiffInd",xPos, yPos-ofsset*3)
+    rerouteDiffCol = createDot("DiffCol",xPos, yPos-ofsset*4)
+    rerouteGlossDir = createDot("GlossDir",xPos, yPos-ofsset*5)
+    rerouteGlossInd = createDot("GlossInd",xPos, yPos-ofsset*6)
+    rerouteGlossCol = createDot("GlossCol",xPos, yPos-ofsset*7)
+    rerouteTransDir = createDot("TransDir",xPos, yPos-ofsset*8)
+    rerouteTransInd = createDot("TransInd",xPos, yPos-ofsset*9)
+    rerouteTransCol = createDot("TransCol",xPos, yPos-ofsset*10)
+    rerouteAlpha = createDot("Alpha",xPos, yPos-ofsset*11)
+    rerouteImage = createDot("NoisyImage",xPos, yPos-ofsset*12)
     
     lightCombined = combineElements(rerouteDiffDir, rerouteDiffInd, 'ADD', 1)
     diffLight = combineElements(lightCombined, rerouteDiffCol, 'MULTIPLY', 2)
@@ -143,13 +96,38 @@ def createReroutes(xPos, yPos, viewLayerName):
     copyAlpha_passes = getAlpha(addMist, rerouteAlpha)
     
     ####light group setup
-    
-    lightGRPCombined1 = combineElements(rerouteLG1, rerouteLG2, 'ADD', 1)
-    lightGRPCombined2 = combineElements(lightGRPCombined1, rerouteLG3, 'ADD', 2)
-    copyAlpha_LG = getAlpha(lightGRPCombined2, rerouteAlpha)
-    
+    numLG = len(bpy.context.scene.view_layers[viewLayerName].lightgroups)
+    knotsArray= []
+    addArray = []
+    if numLG > 0:##checks if lightgroups exists in curretnview layer
+        ##createdots and addMixNodes
+        for i in range(numLG):
+            rerouteLG = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
+            rerouteLG.label="LG"+str(i)
+            rerouteLG.location=[xPos, yPos-ofsset*(13+i)]
+            knotsArray.append(rerouteLG)
+            if i < numLG-1:
+                AddNode = createMixNode('ADD', rerouteLG.location.x+50+(200*i), rerouteLG.location.y)
+                addArray.append(AddNode)
+        
+        ##Connect nodes    
+        for i in range(numLG):
+            if i==0:
+                ##Connect first dots to add nodes  
+                connectAdds(knotsArray[i],addArray[i],0,1)
+            else:
+                ##Connect dots to add nodes 
+                connectAdds(knotsArray[i],addArray[i-1],0,2)
+            if i < numLG-2:
+                ##Connect add nodes in sequence
+                connectAdds(addArray[i],addArray[i+1],0,1)
+                
+        copyAlpha_LG = getAlpha(addArray[numLG-2], rerouteAlpha)
+        file_output_Comp_LG = createOutputsB(copyAlpha_LG,viewLayerName, 'OPEN_EXR', 'compLG')         
+        
+
+
     ###OUTPUTS
-    
     #Copy the alpha to all passes
     diffAlpha = getAlpha(rerouteDiffCol, rerouteAlpha, 30)
     lightAlpha = getAlpha(lightCombined, rerouteAlpha, 30)
@@ -159,7 +137,7 @@ def createReroutes(xPos, yPos, viewLayerName):
     
     #creating the output node and connecting to the passes with alpha
     
-    file_output_Comp_LG = createOutputsB(copyAlpha_LG,viewLayerName, 'OPEN_EXR', 'comp')
+    ############file_output_Comp_LG = createOutputsB(copyAlpha_LG,viewLayerName, 'OPEN_EXR', 'comp')
     file_output_Comp_Passes = createOutputsB(copyAlpha_passes,viewLayerName, 'OPEN_EXR', 'comp')
     
     file_output_Diffuse = createOutputsB(diffAlpha,viewLayerName, 'OPEN_EXR', 'Diffuse')
@@ -169,9 +147,15 @@ def createReroutes(xPos, yPos, viewLayerName):
     file_output_Mist = createOutputsB(mistAlpha,viewLayerName, 'OPEN_EXR', 'Mist')
     file_output_Image = createOutputsB(rerouteImage,viewLayerName, 'OPEN_EXR', 'Image')
     
-    
-    
+def connectAdds(element1, element2, output1, input1):
+    bpy.context.scene.node_tree.links.new(element1.outputs[output1], element2.inputs[input1])
 
+def createDot(mylabel,xPos,yPos):
+    rerouteNode = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
+    rerouteNode.label = mylabel
+    rerouteNode.location=[xPos, yPos]
+    return rerouteNode
+    
 def combineElements(element1, element2, mathOp, posOffset):
     theoffset = 100 * posOffset
     mixNode = createMixNode(mathOp, element1.location.x+theoffset , element1.location.y)
@@ -193,6 +177,7 @@ def createMixNode(blendType, xPos, yPos):
     mixNode = bpy.context.scene.node_tree.nodes.new(type="CompositorNodeMixRGB")
     mixNode.blend_type= blendType
     positionNodes(mixNode, xPos, yPos)
+    mixNode.hide=True
     return mixNode
 
 def createOutputs(nameFile, prefix, xPos, yPos):
