@@ -13,6 +13,7 @@ C = bpy.context
 ####################Create collections functions
 
 def setupRender():
+    
     remove_compositor_nodes()
     scene = bpy.context.scene
     scene.use_nodes = True
@@ -253,6 +254,7 @@ def positionNodes(myNode, xPos, yPos):
     myNode.location.y = yPos
     
 def remove_compositor_nodes():
+    bpy.context.scene.use_nodes = True
     bpy.context.scene.node_tree.nodes.clear()
  
 setupRenderPasses()        
