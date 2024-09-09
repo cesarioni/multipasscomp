@@ -17,7 +17,7 @@ def setupRender():
     scene = bpy.context.scene
     scene.use_nodes = True
     counter=0
-    offset = 2500
+    offset = 5500
     FileBaseName = getFileBaseName()
     
     for viewLayer in bpy.context.scene.view_layers:
@@ -32,16 +32,17 @@ def setupRender():
         file_output_node.layer_slots.clear()
         
         # Only keep the enabled outputs
-        for socket in render_layers_node.outputs:
+        for count, socket in enumerate(render_layers_node.outputs):
             if socket.enabled:
                 file_output_node.layer_slots.new(socket.name)
+                #createPassReroute(3400, (offset*counter)-50, viewLayer.name, socket.name, count)
         
         # Connect the sockets between the two nodes
         for i, socket in enumerate([s for s in render_layers_node.outputs if s.enabled]):
             bpy.context.scene.node_tree.links.new(file_output_node.inputs[i], socket)
             
         createImageNode(2000, (offset*counter)-150)
-        createReroutes(2400, (offset*counter)-50, viewLayer.name)
+        createReroutes(3400, (offset*counter)-50, viewLayer.name)
         counter+=1
         
 def setupRenderPasses():
@@ -58,12 +59,18 @@ def setupRenderPasses():
         theViewLayer.use_pass_transmission_color = True
     
 def createImageNode(xPos, yPos):
+    #print (bpy.context.scene.view_layers["Environment"].RenderPasses)
     imageNode = bpy.context.scene.node_tree.nodes.new(type="CompositorNodeImage")
     positionNodes(imageNode, xPos, yPos)
     return imageNode
 
+def createPassReroute(xPos, yPos, viewLayerName, label, loopVar = 1):
+    ofsset=150
+    rerouteMist = createDot(label,xPos, yPos-ofsset*loopVar)
+
 def createReroutes(xPos, yPos, viewLayerName):
-    ofsset=45
+    ofsset=150
+    print(bpy.context.scene.view_layers[viewLayerName].aovs)
     
     rerouteMist = createDot("Mist",xPos, yPos-ofsset*1)
     rerouteDiffDir = createDot("DiffDir",xPos, yPos-ofsset*2)
@@ -77,6 +84,27 @@ def createReroutes(xPos, yPos, viewLayerName):
     rerouteTransCol = createDot("TransCol",xPos, yPos-ofsset*10)
     rerouteAlpha = createDot("Alpha",xPos, yPos-ofsset*11)
     rerouteImage = createDot("NoisyImage",xPos, yPos-ofsset*12)
+    rerouteZ = createDot("ZDepth",xPos, yPos-ofsset*13)
+    
+
+    switchArray=[]
+    for i in range (13):
+        currentSwitch = createSwitch(xPos-500, yPos-ofsset*i)
+        switchArray.append(currentSwitch)
+        
+    bpy.context.scene.node_tree.links.new(switchArray[0].outputs[0], rerouteMist.inputs[0])
+    bpy.context.scene.node_tree.links.new(switchArray[1].outputs[0], rerouteDiffDir.inputs[0])
+    bpy.context.scene.node_tree.links.new(switchArray[2].outputs[0], rerouteDiffInd.inputs[0])
+    bpy.context.scene.node_tree.links.new(switchArray[3].outputs[0], rerouteDiffCol.inputs[0])
+    bpy.context.scene.node_tree.links.new(switchArray[4].outputs[0], rerouteGlossDir.inputs[0])
+    bpy.context.scene.node_tree.links.new(switchArray[5].outputs[0], rerouteGlossInd.inputs[0])
+    bpy.context.scene.node_tree.links.new(switchArray[6].outputs[0], rerouteGlossCol.inputs[0])
+    bpy.context.scene.node_tree.links.new(switchArray[7].outputs[0], rerouteTransDir.inputs[0])
+    bpy.context.scene.node_tree.links.new(switchArray[8].outputs[0], rerouteTransInd.inputs[0])
+    bpy.context.scene.node_tree.links.new(switchArray[9].outputs[0], rerouteTransCol.inputs[0])
+    bpy.context.scene.node_tree.links.new(switchArray[10].outputs[0], rerouteAlpha.inputs[0])
+    bpy.context.scene.node_tree.links.new(switchArray[11].outputs[0], rerouteImage.inputs[0])
+    bpy.context.scene.node_tree.links.new(switchArray[12].outputs[0], rerouteZ.inputs[0])
     
     lightCombined = combineElements(rerouteDiffDir, rerouteDiffInd, 'ADD', 1)
     diffLight = combineElements(lightCombined, rerouteDiffCol, 'MULTIPLY', 2)
@@ -102,9 +130,9 @@ def createReroutes(xPos, yPos, viewLayerName):
     if numLG > 0:##checks if lightgroups exists in curretnview layer
         ##createdots and addMixNodes
         for i in range(numLG):
-            rerouteLG = bpy.context.scene.node_tree.nodes.new(type="NodeReroute")
-            rerouteLG.label="LG"+str(i)
-            rerouteLG.location=[xPos, yPos-ofsset*(13+i)]
+            SwitchNode = createSwitch(xPos-500, yPos-ofsset*(15+i))
+            rerouteLG = createDot("LG"+str(i),xPos, yPos-ofsset*(15+i))
+            bpy.context.scene.node_tree.links.new(SwitchNode.outputs[0], rerouteLG.inputs[0])
             knotsArray.append(rerouteLG)
             if i < numLG-1:
                 AddNode = createMixNode('ADD', rerouteLG.location.x+50+(200*i), rerouteLG.location.y)
@@ -155,6 +183,11 @@ def createDot(mylabel,xPos,yPos):
     rerouteNode.label = mylabel
     rerouteNode.location=[xPos, yPos]
     return rerouteNode
+
+def createSwitch(xPos, yPos):
+    nodeSwitch = bpy.context.scene.node_tree.nodes.new(type="CompositorNodeSwitch")
+    nodeSwitch.location=[xPos, yPos]
+    return nodeSwitch
     
 def combineElements(element1, element2, mathOp, posOffset):
     theoffset = 100 * posOffset
