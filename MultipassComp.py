@@ -13,83 +13,55 @@ C = bpy.context
 ####################Create collections functions
 
 def setupRender():
-    
-    
     scene = bpy.context.scene
     scene.use_nodes = True
     offset = 5500
     remove_compositor_nodes()
-    thePasses = setupRenderPasses()
+    #thePasses = setupRenderPasses()
     FileBaseName = getFileBaseName()
-    
+    #loop on every view layer
     for counter, viewLayer in enumerate(bpy.context.scene.view_layers):
-        render_layers_node = scene.node_tree.nodes.new(type="CompositorNodeRLayers")
-        render_layers_node.layer= viewLayer.name
-        render_layers_node.location.y=offset*counter
+        thePasses = setupRenderPasses(viewLayer)
+        #create main render layer and multiEXR
+        setupMultiEXR(FileBaseName, viewLayer.name, 0, offset*counter) 
         #Create routes for passes
-        routesPassArray = createPassReroute(thePasses, 3400, (offset*counter)-50, viewLayer.name)
-        passesOperation(routesPassArray, viewLayer.name)
-        #passesAlphasOutputs(routesPassArray)
+        PassesArray = setupCombinePasses(thePasses, 3400, (offset*counter)-50, viewLayer.name)
         #Create routes for lightgroups
-        routesLGArray = createLGReroute(routesPassArray[1], 3400, (offset*counter)-50, viewLayer.name)
-        #Create exr outputs
-        file_output_node = createOutputs(FileBaseName + "_" + viewLayer.name, viewLayer.name, 1000, (offset*counter)-150)
-        # Reset File Output node layer slots and match them to enabled Render Layers
-        file_output_node.layer_slots.clear()
-        
-        # Only keep the enabled outputs
-        for count, socket in enumerate(render_layers_node.outputs):
-            if socket.enabled:
-                file_output_node.layer_slots.new(socket.name)
-                #createPassReroute(3400, (offset*counter)-50, viewLayer.name, socket.name, count)
-        
-        # Connect the sockets between the two nodes
-        for i, socket in enumerate([s for s in render_layers_node.outputs if s.enabled]):
-            bpy.context.scene.node_tree.links.new(file_output_node.inputs[i], socket)
+        setupLGs(PassesArray[1], 3400, (offset*counter)-50, viewLayer.name, True)  
+        #setupLGs(3400, (offset*counter)-50, viewLayer.name, False)
+        #node to import the multiEXR
         createImageNode(2000, (offset*counter)-150)
         
-def setupRenderPasses():
-    for theViewLayer in bpy.context.scene.view_layers:
-        passes = []
-        passes.append("NoisyImage")
-        passes.append("Alpha")
-        theViewLayer.use_pass_z = True
-        passes.append("ZDepth")
-        theViewLayer.use_pass_mist = True
-        passes.append("Mist")
-        theViewLayer.use_pass_diffuse_direct = True
-        passes.append("DiffDir")
-        theViewLayer.use_pass_diffuse_indirect = True
-        passes.append("DiffInd")
-        theViewLayer.use_pass_diffuse_color = True
-        passes.append("DiffCol")
-        theViewLayer.use_pass_glossy_direct = True
-        passes.append("GlossDir")
-        theViewLayer.use_pass_glossy_indirect = True
-        passes.append("GlossInd")
-        theViewLayer.use_pass_glossy_color = True
-        passes.append("GlossCol")
-        theViewLayer.use_pass_transmission_direct = True
-        passes.append("TransDir")
-        theViewLayer.use_pass_transmission_indirect = True
-        passes.append("TransInd")
-        theViewLayer.use_pass_transmission_color = True
-        passes.append("TransCol")
-        return passes
+def setupMultiEXR(path, name, xPos, yPos):
+    render_layers_node = bpy.context.scene.node_tree.nodes.new(type="CompositorNodeRLayers")
+    render_layers_node.layer = name
+    render_layers_node.location.y = yPos
+    #Create exr output
+    file_output_node = createOutputs(path + "_" + name, name, 1000, yPos-150)
+    # Reset File Output node layer slots and match them to enabled Render Layers
+    file_output_node.layer_slots.clear()
+    # Only keep the enabled outputs
+    for count, socket in enumerate(render_layers_node.outputs):
+            if socket.enabled:
+                file_output_node.layer_slots.new(socket.name)
+    # Connect the sockets between the two nodes
+    for i, socket in enumerate([s for s in render_layers_node.outputs if s.enabled]):
+            bpy.context.scene.node_tree.links.new(file_output_node.inputs[i], socket)
     
 def createImageNode(xPos, yPos):
     imageNode = bpy.context.scene.node_tree.nodes.new(type="CompositorNodeImage")
     positionNodes(imageNode, xPos, yPos)
     return imageNode
 
-def createPassReroute(thePasses, xPos, yPos, viewLayerName):
+def setupCombinePasses(thePasses, xPos, yPos, viewLayerName):
     reroutesArray=[]
     ofsset=150
     for count, thePass in enumerate(thePasses):
         currentReroute = createDot(thePass ,xPos, yPos-ofsset*count)
-        currentSwitch = createSwitch(xPos-500, yPos-ofsset*count)
+        currentSwitch = createSwitch(xPos-500, yPos-ofsset*count, thePass)
         reroutesArray.append(currentReroute)
         bpy.context.scene.node_tree.links.new(currentSwitch.outputs[0], currentReroute.inputs[0])
+    passesOperation(reroutesArray, viewLayerName)
     return reroutesArray
 
 def passesOperation(PassReroute, viewLayerName):
@@ -114,7 +86,6 @@ def passesOperation(PassReroute, viewLayerName):
     #creating the output node and connecting to the passes with alpha
     
     file_output_Comp_Passes = createOutputsB(copyAlpha_passes,viewLayerName, 'OPEN_EXR', 'comp')
-
     file_output_Diffuse = createOutputsB(diffAlpha,viewLayerName, 'OPEN_EXR', 'Diffuse')
     file_output_Light = createOutputsB(lightAlpha ,viewLayerName, 'OPEN_EXR', 'Lighting')
     file_output_Glossy = createOutputsB(glossyAlpha,viewLayerName, 'OPEN_EXR', 'Specular')
@@ -123,18 +94,24 @@ def passesOperation(PassReroute, viewLayerName):
     file_output_Image = createOutputsB(PassReroute[0],viewLayerName, 'OPEN_EXR', 'Image')
 
 
-
-def createLGReroute(theAlpha, xPos, yPos, viewLayerName):
+def setupLGs(theAlpha, xPos, yPos, viewLayerName, passesActive):
     knotsArray= []
     addArray = []
     ofsset=150
     separation = 15
-    numLG = len(bpy.context.scene.view_layers[viewLayerName].lightgroups)
-    if numLG > 0:##checks if lightgroups exists in curretnview layer
+    LGs= bpy.context.scene.view_layers[viewLayerName].lightgroups
+    numLG = len(LGs)
+    if len(LGs) > 0:##checks if lightgroups exists in curretnview layer
+        if (passesActive == False):
+            ##createdots and addMixNodes for alpha
+            ofsset=0
+            SwitchNodeAlpha = createSwitch(xPos-500, yPos-ofsset*(separation), "alpha")
+            theAlpha1 = rerouteLGAlpha = createDot("alpha",xPos, yPos-ofsset*(separation))
+            bpy.context.scene.node_tree.links.new(SwitchNodeAlpha.outputs[0], rerouteLGAlpha.inputs[0])
         ##createdots and addMixNodes
-        for i in range(numLG):
-            SwitchNode = createSwitch(xPos-500, yPos-ofsset*(separation+i))
-            rerouteLG = createDot("LG"+str(i),xPos, yPos-ofsset*(separation+i))
+        for i, LG in enumerate(LGs):
+            SwitchNode = createSwitch(xPos-500, yPos-ofsset*(separation+i+1), LGs[i].name)
+            rerouteLG = createDot(LGs[i].name,xPos, yPos-ofsset*(separation+i+1))
             bpy.context.scene.node_tree.links.new(SwitchNode.outputs[0], rerouteLG.inputs[0])
             knotsArray.append(rerouteLG)
             if i < numLG-1:
@@ -165,9 +142,10 @@ def createDot(mylabel,xPos,yPos):
     rerouteNode.location=[xPos, yPos]
     return rerouteNode
 
-def createSwitch(xPos, yPos):
+def createSwitch(xPos, yPos, label):
     nodeSwitch = bpy.context.scene.node_tree.nodes.new(type="CompositorNodeSwitch")
     nodeSwitch.location=[xPos, yPos]
+    nodeSwitch.label= label
     return nodeSwitch
     
 def combineElements(element1, element2, mathOp, posOffset):
@@ -236,6 +214,33 @@ def positionNodes(myNode, xPos, yPos):
 def remove_compositor_nodes():
     bpy.context.scene.use_nodes = True
     bpy.context.scene.node_tree.nodes.clear()
- 
-        
+  
+def setupRenderPasses(theViewLayer, usePasses = True):
+    passes = []
+    passes.append("NoisyImage")
+    passes.append("Alpha")
+    theViewLayer.use_pass_z = True
+    passes.append("ZDepth")
+    theViewLayer.use_pass_mist = True
+    passes.append("Mist")
+    theViewLayer.use_pass_diffuse_direct = True
+    passes.append("DiffDir")
+    theViewLayer.use_pass_diffuse_indirect = True
+    passes.append("DiffInd")
+    theViewLayer.use_pass_diffuse_color = True
+    passes.append("DiffCol")
+    theViewLayer.use_pass_glossy_direct = True
+    passes.append("GlossDir")
+    theViewLayer.use_pass_glossy_indirect = True
+    passes.append("GlossInd")
+    theViewLayer.use_pass_glossy_color = True
+    passes.append("GlossCol")
+    theViewLayer.use_pass_transmission_direct = True
+    passes.append("TransDir")
+    theViewLayer.use_pass_transmission_indirect = True
+    passes.append("TransInd")
+    theViewLayer.use_pass_transmission_color = True
+    passes.append("TransCol")
+    return passes  
+     
 setupRender()
