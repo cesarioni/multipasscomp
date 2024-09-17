@@ -175,7 +175,7 @@ def createMixNode(blendType, xPos, yPos):
 def createOutputs(nameFile, prefix, xPos, yPos):
     render_output = bpy.context.scene.node_tree.nodes.new(type="CompositorNodeOutputFile")
     filepath = bpy.data.filepath
-    subPath = os.path.join(os.path.dirname(filepath), getFileBaseName()+"_"+prefix)
+    subPath = os.path.join(os.path.dirname(filepath), getFileBaseName(), prefix, "mainEXRs", prefix +  "_")
     render_output.base_path=subPath
     render_output.format.file_format='OPEN_EXR_MULTILAYER'
     render_output.format.color_depth='32'
@@ -189,7 +189,7 @@ def createOutputsB(element, prefix, format, filename):
     render_output.layer_slots.clear()
     render_output.layer_slots.new(filename)
     filepath = bpy.data.filepath
-    subPath = os.path.join(os.path.dirname(filepath), "Layer_"+prefix)
+    subPath = os.path.join(os.path.dirname(filepath), getFileBaseName(), prefix)
     render_output.base_path=subPath
     render_output.format.file_format='OPEN_EXR'
     render_output.format.color_depth='32'
