@@ -59,6 +59,9 @@ def setupCombinePasses(thePasses, xPos, yPos, viewLayerName):
     for count, thePass in enumerate(thePasses):
         currentReroute = createDot(thePass ,xPos, yPos-ofsset*count)
         currentSwitch = createSwitch(xPos-500, yPos-ofsset*count, thePass)
+        if (thePass=="Alpha"):
+            currentSwitch.inputs[0].default_value = (1, 1, 1, 1)
+            currentSwitch.inputs[1].default_value = (1, 1, 1, 1)
         reroutesArray.append(currentReroute)
         bpy.context.scene.node_tree.links.new(currentSwitch.outputs[0], currentReroute.inputs[0])
     passesOperation(reroutesArray, viewLayerName)
@@ -92,7 +95,6 @@ def passesOperation(PassReroute, viewLayerName):
     file_output_Transmition = createOutputsB(transmitionAlpha,viewLayerName, 'OPEN_EXR', 'Transmition')
     file_output_Mist = createOutputsB(mistAlpha,viewLayerName, 'OPEN_EXR', 'Mist')
     file_output_Image = createOutputsB(PassReroute[0],viewLayerName, 'OPEN_EXR', 'Image')
-
 
 def setupLGs(theAlpha, xPos, yPos, viewLayerName, passesActive):
     knotsArray= []
@@ -146,6 +148,9 @@ def createSwitch(xPos, yPos, label):
     nodeSwitch = bpy.context.scene.node_tree.nodes.new(type="CompositorNodeSwitch")
     nodeSwitch.location=[xPos, yPos]
     nodeSwitch.label= label
+    ##bpy.data.scenes["Scene"].node_tree.nodes["Switch.005"].inputs[0].default_value = (0.800047, 0, 0.681489, 1)
+    nodeSwitch.inputs[0].default_value = (0, 0, 0, 1)
+    nodeSwitch.inputs[1].default_value = (0, 0, 0, 1)
     return nodeSwitch
     
 def combineElements(element1, element2, mathOp, posOffset):
