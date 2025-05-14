@@ -43,7 +43,11 @@ def setupMultiEXR(path, name, xPos, yPos):
     # Only keep the enabled outputs
     for count, socket in enumerate(render_layers_node.outputs):
             if socket.enabled:
-                file_output_node.layer_slots.new(socket.name)
+                if socket.name!="Image":
+                    file_output_node.layer_slots.new(socket.name)
+                else:
+                    # Leave the image output empty to get RGB values
+                    file_output_node.layer_slots.new("")
     # Connect the sockets between the two nodes
     for i, socket in enumerate([s for s in render_layers_node.outputs if s.enabled]):
             bpy.context.scene.node_tree.links.new(file_output_node.inputs[i], socket)
@@ -180,7 +184,7 @@ def createMixNode(blendType, xPos, yPos):
 def createOutputs(nameFile, prefix, xPos, yPos):
     render_output = bpy.context.scene.node_tree.nodes.new(type="CompositorNodeOutputFile")
     filepath = bpy.data.filepath
-    subPath = os.path.join(os.path.dirname(filepath), getFileBaseName(), prefix, "mainEXRs", prefix +  "_")
+    subPath = os.path.join(os.path.dirname(filepath), getFileBaseName(), prefix+"_")
     render_output.base_path=subPath
     render_output.format.file_format='OPEN_EXR_MULTILAYER'
     render_output.format.color_depth='32'
@@ -240,11 +244,11 @@ def setupRenderPasses(theViewLayer, usePasses = True):
     passes.append("GlossInd")
     theViewLayer.use_pass_glossy_color = True
     passes.append("GlossCol")
-    theViewLayer.use_pass_transmission_direct = True
+    theViewLayer.use_pass_transmission_direct = False
     passes.append("TransDir")
-    theViewLayer.use_pass_transmission_indirect = True
+    theViewLayer.use_pass_transmission_indirect = False
     passes.append("TransInd")
-    theViewLayer.use_pass_transmission_color = True
+    theViewLayer.use_pass_transmission_color = False
     passes.append("TransCol")
     return passes  
      
