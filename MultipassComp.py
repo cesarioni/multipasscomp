@@ -41,13 +41,20 @@ def setupMultiEXR(path, name, xPos, yPos):
     # Reset File Output node layer slots and match them to enabled Render Layers
     file_output_node.layer_slots.clear()
     # Only keep the enabled outputs
+    print (render_layers_node.outputs[10].name)
     for count, socket in enumerate(render_layers_node.outputs):
-            if socket.enabled:
-                if socket.name!="Image":
-                    file_output_node.layer_slots.new(socket.name)
-                else:
-                    # Leave the image output empty to get RGB values
-                    file_output_node.layer_slots.new("")
+        #Removing Alpha and noisy image output
+        if socket.name=="Alpha":
+            socket.enabled = False
+        if socket.name=="Noisy Image":
+            socket.enabled = False
+        # End of Removing Alpha and noisy image output
+        if socket.enabled:
+            if socket.name!="Image":
+                file_output_node.layer_slots.new(socket.name)
+            else:
+                # Leave the image output empty to get RGB values
+                file_output_node.layer_slots.new("")
     # Connect the sockets between the two nodes
     for i, socket in enumerate([s for s in render_layers_node.outputs if s.enabled]):
             bpy.context.scene.node_tree.links.new(file_output_node.inputs[i], socket)
@@ -184,7 +191,9 @@ def createMixNode(blendType, xPos, yPos):
 def createOutputs(nameFile, prefix, xPos, yPos):
     render_output = bpy.context.scene.node_tree.nodes.new(type="CompositorNodeOutputFile")
     filepath = bpy.data.filepath
-    subPath = os.path.join(os.path.dirname(filepath), getFileBaseName(), prefix+"_")
+    ## VERSION WITH THE SAME NAME OF THE FILE
+    ## subPath = os.path.join(os.path.dirname(filepath), getFileBaseName(), prefix+"_")
+    subPath = os.path.join(os.path.dirname(filepath), "render", prefix+"_")
     render_output.base_path=subPath
     render_output.format.file_format='OPEN_EXR_MULTILAYER'
     render_output.format.color_depth='32'
